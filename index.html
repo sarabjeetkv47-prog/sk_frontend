@@ -1,0 +1,232 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Digit Classifier</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #111827;
+        }
+
+        p {
+            color: #64748b;
+            margin-bottom: 2rem;
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 1rem;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background-color: #f5f3ff;
+        }
+
+        #preview {
+            max-width: 150px;
+            max-height: 150px;
+            border-radius: 0.5rem;
+            display: none;
+            margin: 0 auto 1rem;
+            image-rendering: pixelated;
+            border: 1px solid #e2e8f0;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        #result {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            display: none;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .prediction-box {
+            background: #f1f5f9;
+            padding: 1.5rem;
+            border-radius: 1rem;
+        }
+
+        .digit {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            display: block;
+        }
+
+        .label {
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 700;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loader {
+            display: none;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Digit Classifier</h1>
+    <p>Upload a handwritten digit image (MNIST style) to see the AI's prediction.</p>
+
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        <img id="preview" alt="Preview">
+        <div id="uploadText">
+            <svg style="width:48px;height:48px;color:#94a3b8;margin-bottom:12px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.587-1.587a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <p style="margin:0">Click to upload image</p>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" onchange="previewImage(event)">
+    </div>
+
+    <button id="predictBtn" onclick="uploadAndPredict()" disabled>Classify Digit</button>
+    
+    <div id="loaderContainer" style="margin-top: 1rem; display:none;">
+        <div class="loader"></div>
+        <p style="font-size: 0.875rem; margin-top: 0.5rem;">AI is thinking...</p>
+    </div>
+
+    <div id="result">
+        <div class="prediction-box">
+            <span class="label">Prediction</span>
+            <span id="digitResult" class="digit">-</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_URL = "https://preetilado25.onrender.com/docs/predict"; // Replace with your actual Render URL
+
+    function previewImage(event) {
+        const reader = new FileReader();
+        reader.onload = function() {
+            const preview = document.getElementById('preview');
+            const uploadText = document.getElementById('uploadText');
+            preview.src = reader.result;
+            preview.style.display = "block";
+            uploadText.style.display = "none";
+            document.getElementById('predictBtn').disabled = false;
+        }
+        reader.readAsDataURL(event.target.files[0]);
+    }
+
+    async function uploadAndPredict() {
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // UI State
+        document.getElementById('predictBtn').style.display = "none";
+        document.getElementById('loaderContainer').style.display = "block";
+        document.getElementById('result').style.display = "none";
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            
+            document.getElementById('digitResult').innerText = data.prediction;
+            document.getElementById('result').style.display = "block";
+        } catch (error) {
+            alert("Error connecting to API. Check if your Render URL is correct and the server is awake.");
+        } finally {
+            document.getElementById('predictBtn').style.display = "block";
+            document.getElementById('loaderContainer').style.display = "none";
+        }
+    }
+</script>
+
+</body>
+</html>
